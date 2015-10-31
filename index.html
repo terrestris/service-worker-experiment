@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>ServiceWorker example</title>
+        <link rel="stylesheet" href="./ol.css" type="text/css">
+        <link rel="stylesheet" href="./basic.css" type="text/css">
+        <script src="./ol.js"></script>
+        <script>
+/**
+ * Show a warning message when in trouble
+ */
+function warn (detail) {
+    var div = document.getElementById('warn');
+    div.innerHTML = detail;
+    div.style.display = "block";
+}
+/**
+ * Handle clicks on the i-button to toggle the textual
+ * explantion
+ */
+function toggleInfo() {
+    this.innerHTML = this.innerHTML === "i" ? "✖" : "i"
+    var infoDiv = document.getElementById('info');
+    if (infoDiv.style.display === "none") {
+        infoDiv.style.display = "block";
+    } else {
+        infoDiv.style.display = "none";
+    }
+}
+        </script>
+        <script>
+if ('serviceWorker' in navigator) {
+  var registerPromise = navigator.serviceWorker.register(
+      './service-worker.js'
+  );
+
+  registerPromise.then(function(registration){
+      console.log('Successfully registered service worker', registration);
+  }).catch(function(err) {
+      warn('Failed to register Service Worker. ' + err);
+      console.error(err);
+  });
+} else {
+    warn('Your browser does not support Service Workers. ☹');
+}
+        </script>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div id="over-info"></div>
+
+        <div id="info">
+            <h1>Using Service Workers to provide offline capable maps:
+                An experiment</h1>
+            <p id="warn">
+            </p>
+            <p>
+This example shows a basic map that has an
+<a href="https://www.openstreetmap.org/">OpenStreetMap</a> layer
+and on top of that a GeoJSON for countries. The resources we use
+in this example are raster tiles from openstreetmap.org and a
+local raw GeoJSON.
+            </p>
+            <p>
+Once you open the example, a <a href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">Service
+Worker</a> is instantiated, that tries to cache all needed resources, so that the map should
+basically work the same, even if you are offline. In particular,
+we instruct capable browsers (e.g. Chrome >= v46) to cache
+worldwide osm tiles up to zoom level 6. All the other page
+resources are cached as well.
+            </p>
+            <p>
+How to try this? Just open this example in a browser, wait some
+time, and then go offline. You should still be able to reload
+the page, go to some places where you have never been before and
+interact with the GeoJSON.
+            </p>
+            <p>
+This is a work in progress and not more than a proof-of-concept,
+but nonetheless it looks promosing. If you have any questions,
+just contact us: <a href="mailto:info@terrestris">info@terrestris</a>.
+            </p>
+        </div>
+        <div id="info-toggle">✖</div>
+        <script>
+var osmLayer = new ol.layer.Tile({
+    source: new ol.source.OSM({
+        // only request tiles from the 'a' subdomain, as that is cached
+        url: 'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    })
+});
+var vector = new ol.layer.Vector({
+    source: new ol.source.Vector({
+        url: 'countries.geojson',
+        format: new ol.format.GeoJSON()
+    })
+});
+var overInfo = document.getElementById('over-info');
+var select = new ol.interaction.Select({
+    condition: ol.events.condition.pointerMove
+});
+select.on('select', function(event){
+    var selected = event.selected[0];
+    if (!selected) {
+        overInfo.innerHTML = '';
+    } else {
+        overInfo.innerHTML = '<span>' + selected.get('name') + '</span>';
+    }
+});
+
+var map = new ol.Map({
+    layers: [osmLayer, vector],
+    controls: ol.control.defaults({
+        attributionOptions: {collapsible: false}
+    }),
+    target: 'map',
+    view: new ol.View({
+        center: ol.proj.fromLonLat([-8.858178, 38.454296]),
+        zoom: 2
+    }),
+    logo: false,
+});
+map.addInteraction(select);
+
+var toggleDiv = document.getElementById('info-toggle');
+toggleDiv.addEventListener('click', toggleInfo, false);
+        </script>
+    </body>
+</html>
